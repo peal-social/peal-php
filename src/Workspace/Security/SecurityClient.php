@@ -1,12 +1,10 @@
 <?php
 
-namespace Peal\Me;
+namespace Peal\Workspace\Security;
 
-use Peal\Me\Notices\NoticesClient;
-use Peal\Me\NotificationPreferences\NotificationPreferencesClient;
 use Psr\Http\Client\ClientInterface;
 use Peal\Core\Client\RawClient;
-use Peal\Types\Me;
+use Peal\Types\WorkspaceSecurity;
 use Peal\Exceptions\PealException;
 use Peal\Exceptions\PealApiException;
 use Peal\Core\Json\JsonApiRequest;
@@ -15,18 +13,8 @@ use Peal\Core\Client\HttpMethod;
 use JsonException;
 use Psr\Http\Client\ClientExceptionInterface;
 
-class MeClient
+class SecurityClient
 {
-    /**
-     * @var NoticesClient $notices
-     */
-    public NoticesClient $notices;
-
-    /**
-     * @var NotificationPreferencesClient $notificationPreferences
-     */
-    public NotificationPreferencesClient $notificationPreferences;
-
     /**
      * @var array{
      *   baseUrl?: string,
@@ -59,16 +47,14 @@ class MeClient
     ) {
         $this->client = $client;
         $this->options = $options ?? [];
-        $this->notices = new NoticesClient($this->client, $this->options);
-        $this->notificationPreferences = new NotificationPreferencesClient($this->client, $this->options);
     }
 
     /**
-     * Answers with the signed-in user and every workspace they belong to, with their role and permissions in each, whether the account has two-step verification on and a password, and whether each workspace requires it (a workspace that requires it refuses the user while it is off). Where the server measures the web app's use, it also says how, with the person's choice about it. API keys belong to a workspace, not a user, and get 403.
+     * Answers whether the workspace requires two-step verification of every member, and, to a member who may manage members (member:update), how many members' accounts do not have it on. Any member, application or API key of the workspace may read it.
      *
      * Example:
      * ```php
-     * $client->me->get();
+     * $client->workspace->security->get();
      * ```
      *
      * @param ?array{
@@ -79,18 +65,18 @@ class MeClient
      *   queryParameters?: array<string, mixed>,
      *   bodyProperties?: array<string, mixed>,
      * } $options
-     * @return ?Me
+     * @return ?WorkspaceSecurity
      * @throws PealException
      * @throws PealApiException
      */
-    public function get(?array $options = null): ?Me
+    public function get(?array $options = null): ?WorkspaceSecurity
     {
         $options = array_merge($this->options, $options ?? []);
         try {
             $response = $this->client->sendRequest(
                 new JsonApiRequest(
                     baseUrl: $options['baseUrl'] ?? $this->client->options['baseUrl'] ?? Environments::Default_->value,
-                    path: "api/me",
+                    path: "api/v1/workspace/security",
                     method: HttpMethod::GET,
                 ),
                 $options,
@@ -101,7 +87,7 @@ class MeClient
                 if (empty($json)) {
                     return null;
                 }
-                return Me::fromJson($json);
+                return WorkspaceSecurity::fromJson($json);
             }
         } catch (JsonException $e) {
             throw new PealException(message: "Failed to deserialize response: {$e->getMessage()}", previous: $e);
